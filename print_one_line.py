@@ -1,3 +1,7 @@
+'''
+이 코드는 리스트에 있는 내용을 한 줄로 출력해주는 코드입니다.
+'''
+
 log = [
     "alarm_ca_detect_log",
     "alarm_ca_detect_log_abbrev",
