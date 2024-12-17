@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # SQLite 데이터베이스 파일
-DB_FILE="tmsplus.dbb"
+DB_FILE="/home1/TMS41/www/dbb/tmsplus.dbb"
 
 # 데이터베이스 암호
 alias dpw='echo "PRAGMA key='\''$(cat /home1/TMS41/sniper.dat |grep "^[Serial].*\\[" | sha256sum | cut -d " " -f1)'\'';"'
@@ -11,7 +11,7 @@ DB_PASSWORD=$(dpw)
 SQL_QUERY="select * from ENV_CONFIG_CODE where SCATEGORY='DB_DELETE';"
 
 # SQLCipher로 데이터 조회
-result=$(sqlcipher "$DB_FILE" <<EOF
+result=$(/home1/TMS41/www/dbb/sqlcipher "$DB_FILE" <<EOF
 $DB_PASSWORD;
 $SQL_QUERY;
 EOF
