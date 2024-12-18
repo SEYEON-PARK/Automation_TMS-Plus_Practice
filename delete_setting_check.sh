@@ -83,10 +83,29 @@ done
 # 기준 날짜 계산 (오늘부터 '기간(일)' 전)
 cutoff_date=$(date -d "-${data_dict["DURATION"]} days" +%Y%m%d)
 
+# 탐지 로그, 방화벽 로그, 통계 로그 컬렉션 읽어오기
+log_values=$(sed -n '/"log"/,/\]/p' "$JSON_FILE" | awk '/\[/,/\]/ {if ($0 ~ /\],$/) {sub(/,$/, "")}  print }' | tr -d '\n\t')
+session_values=$(sed -n '/"session"/,/\]/p' "$JSON_FILE" | awk '/\[/,/\]/ {if ($0 ~ /\],$/) {sub(/,$/, "")}  print }' | tr -d '\n\t')
+statics_values=$(sed -n '/"statics"/,/\]/p' "$JSON_FILE" | awk '/\[/,/\]/ {if ($0 ~ /\],$/) {sub(/,$/, "")}  print }' | tr -d '\n\t')
+
+# 이중 escaping 처리
+log_values=$(echo "$log_values" | sed 's/\\/\\\\/g; s/"/\\"/g')
+session_values=$(echo "$session_values" | sed 's/\\/\\\\/g; s/"/\\"/g')
+statics_values=$(echo "$statics_values" | sed 's/\\/\\\\/g; s/"/\\"/g')
+
 # MongoDB에 연결
 mongo --quiet --host localhost --port 23011 --eval "
     var dbNames = db.getMongo().getDBNames();
     var cutoffDate = '$cutoff_date'; 
+    var detectionCollections = JSON.parse('$log_values');
+    var firewallCollections = JSON.parse('$session_values'); 
+    var staticsCollections = JSON.parse('$statics_values');
+    
+    // JSON 파일에서 읽어온 컬렉션 항목들 확인
+    // print(JSON.stringify(detectionCollections));
+    // print(JSON.stringify(firewallCollections));
+    // print(JSON.stringify(staticsCollections));
+
     var detectionFound = false;  // 탐지 관련 컬렉션이 발견되었는지 여부
     var firewallFound = false;   // 방화벽 관련 컬렉션이 발견되었는지 여부
 
@@ -109,7 +128,8 @@ mongo --quiet --host localhost --port 23011 --eval "
  
                 // 제대로 조회되었는지 확인(디버깅)
                 // printjson(collections);  // collections 배열을 출력해 봄
-            
+
+                /*
                 // 탐지 관련 컬렉션 목록
                 var detectionCollections = [
                     'alarm_ca_detect_log', 'alarm_ca_detect_log_abbrev', 'alarm_resource_threshold', 
@@ -133,6 +153,7 @@ mongo --quiet --host localhost --port 23011 --eval "
                     'log_ngfw_ips', 'log_ngfw_ipsec', 'log_ngfw_network', 'log_ngfw_ssl', 'log_ngfw_stat_sensor', 
                     'log_ngfw_system', 'log_ngfw_traffic_total'
                 ];
+                */
 
                 // 탐지 관련 컬렉션을 찾았는지 확인
                 detectionFound = detectionCollections.some(function(collection) {
@@ -161,11 +182,17 @@ mongo --quiet --host localhost --port 23011 --eval "
 
     // db_stat 데이터베이스로 전환
     var targetDB = db.getSiblingDB('db_stat');  // db_stat 데이터베이스로 접근
- 
+    
+    /*
     // 통계 로그 확인 
     var statisticsFound = ['stat_tuple_detect_min', 'stat_tuple_detect_hour', 'stat_tuple_utm_ips_min', 
                           'stat_tuple_utm_ddos_min', 'stat_tuple_utm_app_min', 'stat_tuple_utm_ips_hour', 
                           'stat_tuple_utm_ddos_hour', 'stat_tuple_utm_app_hour'].some(collection => targetDB.getCollectionNames()
+                          .some(c => c.startsWith(collection) && c.match(/_\d{8}$/) && parseInt(c.match(/_(\d{8})$/)[1]) < parseInt(cutoffDate)))
+    */
+    
+    // 통계 로그 확인 
+    var statisticsFound = staticsCollections.some(collection => targetDB.getCollectionNames()
                           .some(c => c.startsWith(collection) && c.match(/_\d{8}$/) && parseInt(c.match(/_(\d{8})$/)[1]) < parseInt(cutoffDate)))
 
     print('[\'' + cutoffDate + '\'보다 이전 날짜 데이터베이스 확인 결과]')
