@@ -195,6 +195,63 @@ mongo --quiet --host localhost --port 23011 --eval "
     var statisticsFound = staticsCollections.some(collection => targetDB.getCollectionNames()
                           .some(c => c.startsWith(collection) && c.match(/_\d{8}$/) && parseInt(c.match(/_(\d{8})$/)[1]) < parseInt(cutoffDate)))
 
+    // 1 입력 시, 사전조건을 만족하도록 없는 로그는  컬렉션 추가
+    if (userInput === '1'){
+        if (!detectionFound){
+            var targetDB = db.getSiblingDB('db_' + previous_cutoff_date);
+            targetDB.createCollection('alarm_ca_detect_log');
+            print('\'기간(일)\' 이전 탐지로그가 존재하지 않아 컬렉션을 생성하였습니다.')
+        }
+        if (!firewallFound){
+            var targetDB = db.getSiblingDB('db_' + previous_cutoff_date);
+            targetDB.createCollection('log_utm_session');
+            print('\'기간(일)\' 이전 방화벽로그가 존재하지 않아 컬렉션을 생성하였습니다.')
+        }
+        if (!statisticsFound){
+            var targetDB = db.getSiblingDB('db_stat');
+            targetDB.createCollection('stat_tuple_detect_min_' + previous_cutoff_date);
+            print('\'기간(일)\' 이전 통계로그가 존재하지 않아 컬렉션을 생성하였습니다.')
+        }
+        print()
+	
+        var dbNames = db.getMongo().getDBNames();
+        dbNames.forEach(function(db_name) {
+            // db_yyyymmdd 형식인지 확인
+            if (db_name.match(/^db_([0-9]{8})$/)) {
+                var db_date = db_name.match(/^db_([0-9]{8})$/)[1];
+
+                // 기준 날짜보다 작은 경우만 확인
+                if (db_date < cutoffDate) {
+                    //  print('Checking database: ' + db_name + ' (Date: ' + db_date + ')');
+
+                    // 해당 날짜의 데이터베이스로 전환
+                    var targetDB = db.getSiblingDB(db_name);  // db_name 데이터베이스로 접근
+
+                    // 컬렉션 목록
+                    var collections = targetDB.getCollectionNames();
+
+                    // 탐지 관련 컬렉션을 찾았는지 확인
+                    detectionFound = detectionCollections.some(function(collection) {
+                        return collections.indexOf(collection) !== -1;
+                    });
+
+                    // 방화벽 관련 컬렉션을 찾았는지 확인
+                    firewallFound = firewallCollections.some(function(collection) {
+                        return collections.indexOf(collection) !== -1;
+                    });
+                }
+            }
+        });
+
+    	// db_stat 데이터베이스로 전환
+    	var targetDB = db.getSiblingDB('db_stat');  // db_stat 데이터베이스로 접근
+
+    	// 통계 로그 확인
+    	var statisticsFound = staticsCollections.some(collection => targetDB.getCollectionNames()
+        	              .some(c => c.startsWith(collection) && c.match(/_\d{8}$/) && parseInt(c.match(/_(\d{8})$/)[1]) < parseInt(cutoffDate)))
+
+    }
+
     print('[\'' + cutoffDate + '\'보다 이전 날짜 데이터베이스 확인 결과]')
     // 모든 데이터베이스를 확인한 후, 결과를 한 번만 출력
     if (detectionFound) {
