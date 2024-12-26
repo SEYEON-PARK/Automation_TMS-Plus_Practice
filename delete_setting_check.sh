@@ -1,7 +1,13 @@
 #!/bin/bash
 
 # SQLite 데이터베이스 파일
-DB_FILE="/home1/TMS41/www/dbb/tmsplus.dbb"
+DB_FILE="${TMS_INSTALL_PATH}/www/dbb/tmsplus.dbb"
+
+# JSON 파일 경로
+JSON_FILE="${TMS_INSTALL_PATH}/APP/CONFIG/subconfig/dbmanager.backup.json"
+
+# 사용자 입력값 저장
+user_input=$1
 
 # 데이터베이스 암호
 alias dpw='echo "PRAGMA key='\''$(cat /home1/TMS41/sniper.dat |grep "^[Serial].*\\[" | sha256sum | cut -d " " -f1)'\'';"'
@@ -83,6 +89,9 @@ done
 # 기준 날짜 계산 (오늘부터 '기간(일)' 전)
 cutoff_date=$(date -d "-${data_dict["DURATION"]} days" +%Y%m%d)
 
+# cutoff_date에서 하루 빼기
+previous_cutoff_date=$(date -d "$cutoff_date -1 day" +%Y%m%d)
+
 # 탐지 로그, 방화벽 로그, 통계 로그 컬렉션 읽어오기
 log_values=$(sed -n '/"log"/,/\]/p' "$JSON_FILE" | awk '/\[/,/\]/ {if ($0 ~ /\],$/) {sub(/,$/, "")}  print }' | tr -d '\n\t')
 session_values=$(sed -n '/"session"/,/\]/p' "$JSON_FILE" | awk '/\[/,/\]/ {if ($0 ~ /\],$/) {sub(/,$/, "")}  print }' | tr -d '\n\t')
@@ -96,7 +105,9 @@ statics_values=$(echo "$statics_values" | sed 's/\\/\\\\/g; s/"/\\"/g')
 # MongoDB에 연결
 mongo --quiet --host localhost --port 23011 --eval "
     var dbNames = db.getMongo().getDBNames();
+    var userInput = '$user_input';
     var cutoffDate = '$cutoff_date'; 
+    var previous_cutoff_date = '$previous_cutoff_date';
     var detectionCollections = JSON.parse('$log_values');
     var firewallCollections = JSON.parse('$session_values'); 
     var staticsCollections = JSON.parse('$statics_values');
