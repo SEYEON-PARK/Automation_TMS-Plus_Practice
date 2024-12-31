@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# 현재 폴더 위치를 구함
-CURRENT_DIR=$(pwd)
+# 스크립트의 경로를 명시적으로 변환
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")" && pwd)
 
 # txt 파일 경로 설정 (현재 폴더 아래에 'output.txt' 파일 생성)
 OUTPUT_FILE="$CURRENT_DIR/output.txt"

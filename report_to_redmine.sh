@@ -7,8 +7,8 @@ API_KEY="API 키"
 # 수정할 일감 ID
 ISSUE_ID="일감 번호"
 
-# 현재 폴더 위치를 구함
-CURRENT_DIR=$(pwd)
+# 스크립트의 경로를 명시적으로 변환
+CURRENT_DIR=$(cd "$(dirname "$BASH_SOURCE")" && pwd)
 
 # 오늘 날짜 가져오기 (YYYY-MM-DD 형식)
 TODAY=$(date '+%Y-%m-%d')
